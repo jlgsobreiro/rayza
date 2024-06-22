@@ -1,39 +1,63 @@
+from math import exp, log
+import numpy as np
+from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 
-# Função exp e log manualmente
-def exp(x, tol=1e-10):
-    term = 1
-    sum = 1
-    n = 1
-    while abs(term) > tol:
-        term *= x / n
-        sum += term
-        n += 1
-    return sum
 
-def log(x, tol=1e-10):
-    if x <= 0:
-        raise ValueError("Logarithm only defined for positive values")
-    n = 0
-    while x > 2:
-        x /= 2
-        n += 1
-    x -= 1
-    term = x
-    sum = x
-    i = 2
-    while abs(term) > tol:
-        term *= -x * (i - 1) / i
-        sum += term
-        i += 1
-    return sum + n * 0.69314718056
+def IDCPH(T0, T, deltaA, deltaB, deltaC, deltaD):
+    return deltaA * (T - T0) + deltaB * log(T / T0) + deltaC + deltaD * (T - T0) ** 2
 
-# Constantes e dados
-R = 8.31  # J/mol.K
-T0 = 298.15  # K
-T_list = range(750, 1300, 50)  # K
-P0 = 1  # bar
-P = 1.2  # bar
+
+def IDCPS(T0, T, deltaA, deltaB, deltaC, deltaD):
+    return deltaA * (T - T0) + deltaB * (T / T0) + deltaC + deltaD * (T - T0)
+
+
+print('''13.48. O craqueamento de propano é uma rota para a produção de olefinas leves. Supona que duas reaçoes de
+craqueamento ocorram em um reator contínuo em regime estacionário:
+C3H8(g) -> C3H6(g) + H2(g)      (I)
+C3H8(g) -> C2H4(g) + CH4(g)     (II)
+Calcule a composição do produto se as duas reações alcançam o equilibrio a 1,2 bar e
+(a) 750K; (b) 1OOOK; (c) 1250K''')
+
+'''13.48
+C3H8(g) -> C3H6(g) + H2(g)  (I)
+C3H8(g) -> C2H4(g) + CH4(g) (II)
+TO = 298.15K
+PO = 1 (bar)
+T = 750K
+P = 1.2(bar)
+'''
+# # 1 = C3H8(g)
+#
+# deltaH0f1 := -104680  #J/mol
+# deltaG0f1 := -24290   #J/mol
+#
+# # 2 = C3H6(g)
+#
+# deltaH0f2 := -19710  #J/mol
+# deltaG0f2 := -62205  #J/mol
+#
+# # 3 = H2(g)
+#
+# deltaH0f3 := 0  #J/mol
+# deltaG0f3 := 0  #J/mol
+#
+# # 4 = C2H4 (g)
+#
+# deltaH0f4 := 52510  #J/mol
+# deltaG0f4 := 68460   #J/mol
+#
+# # 5 = CH4 (g)
+#
+# deltaH0f5 := -74520  #J/mol
+# deltaG0f5 := -50460  #J/mol
+
+R = 8.31  #J/mol.K
+
+T0 = 298.15  #K
+T_list = range(750, 1300, 50)  #K
+P0 = 1  #(bar)
+P = 1.2  #(bar)
 
 dict_elements = {
     'C3H8': {"deltah0": -104680, "deltag0": -24290},
@@ -51,32 +75,42 @@ tabela_C1 = {
     "CH4": {"Vi": 1, "Ai": 1.702, "Bi": 9.081 * 10 ** -3, "Ci": -2.164 * 10 ** -6, "Di": 0},
 }
 
+
 def delta_H0I(a, b, c):
     return - dict_elements[a]["deltah0"] + dict_elements[b]["deltah0"] + dict_elements[c]["deltah0"]
+
 
 def delta_G0I(a, b, c):
     return - dict_elements[a]["deltag0"] + dict_elements[b]["deltag0"] + dict_elements[c]["deltag0"]
 
+
 def deltaAI(a, b, c):
     return - tabela_C1[a]["Ai"] + tabela_C1[b]["Ai"] + tabela_C1[c]["Ai"]
+
 
 def deltaBI(a, b, c):
     return - tabela_C1[a]["Bi"] + tabela_C1[b]["Bi"] + tabela_C1[c]["Bi"]
 
+
 def deltaCI(a, b, c):
     return - tabela_C1[a]["Ci"] + tabela_C1[b]["Ci"] + tabela_C1[c]["Ci"]
+
 
 def deltaDI(a, b, c):
     return - tabela_C1[a]["Di"] + tabela_C1[b]["Di"] + tabela_C1[c]["Di"]
 
+
 def tau(T0, T):
     return T / T0
+
 
 def KI0(deltaG0I, T0):
     return exp(-deltaG0I / (R * T0))
 
+
 def KI1(deltaH0I, T0, T):
     return exp((deltaH0I / (R * T0)) * (1 - T0 / T))
+
 
 def KI2(T0, T, dAI, dBI, dCI, dDI):
     tau0 = tau(T0, T)
@@ -87,14 +121,18 @@ def KI2(T0, T, dAI, dBI, dCI, dDI):
         (1 / 2) * (dDI / T0 ** 2) * (((tau0 - 1) ** 2) / tau0 ** 2))
     return result
 
+
 def K(k0, k1, k2):
     return k0 * k1 * k2
+
 
 def V(a, b, c):
     return tabela_C1[a]["Vi"] + tabela_C1[b]["Vi"] + tabela_C1[c]["Vi"]
 
+
 def n0(a, b, c):
     return - tabela_C1[a]["Vi"] + tabela_C1[b]["Vi"] + tabela_C1[c]["Vi"]
+
 
 reactions = [("C3H8", "C3H6", "H2"), ("C3H8", "C2H4", "CH4")]
 Ks = []
@@ -157,36 +195,8 @@ for i in range(len(T_list)):
         return [eq1, eq2]
 
 
-    # Método de Newton-Raphson
-    def jacobian(epsilons, KI, KII, p):
-        epsilon_I, epsilon_II = epsilons
-        common_denominator = (1 + epsilon_I + epsilon_II) ** 3
-        d_eq1_d_epsilon_I = (2 * epsilon_I * (1 + epsilon_I + epsilon_II) - epsilon_I ** 2 - epsilon_II ** 2 - 1) / common_denominator - (KI * p * (-1)) / (1 + epsilon_I + epsilon_II) ** 2
-        d_eq1_d_epsilon_II = (2 * epsilon_I * (1 + epsilon_I + epsilon_II) - epsilon_I ** 2 - epsilon_II ** 2 - 1) / common_denominator
-        d_eq2_d_epsilon_I = (2 * epsilon_II * (1 + epsilon_I + epsilon_II) - epsilon_I ** 2 - epsilon_II ** 2 - 1) / common_denominator
-        d_eq2_d_epsilon_II = (2 * epsilon_II * (1 + epsilon_I + epsilon_II) - epsilon_I ** 2 - epsilon_II ** 2 - 1) / common_denominator - (KII * p * (-1)) / (1 + epsilon_I + epsilon_II) ** 2
-        return [[d_eq1_d_epsilon_I, d_eq1_d_epsilon_II],
-                [d_eq2_d_epsilon_I, d_eq2_d_epsilon_II]]
-
-
-    def newton_raphson(equations, initial_guess, KI, KII, p, tol=1e-6, max_iterations=3):
-        epsilon_I, epsilon_II = initial_guess
-        for _ in range(max_iterations):
-            F = equations([epsilon_I, epsilon_II])
-            J = jacobian([epsilon_I, epsilon_II], KI, KII, p)
-            # Resolução manual do sistema linear
-            det_J = J[0][0] * J[1][1] - J[0][1] * J[1][0]
-            if det_J == 0:
-                raise ValueError("Jacobian determinant is zero")
-            delta_I = (F[0] * J[1][1] - F[1] * J[0][1]) / det_J
-            delta_II = (J[0][0] * F[1] - J[1][0] * F[0]) / det_J
-            epsilon_I, epsilon_II = epsilon_I - delta_I, epsilon_II - delta_II
-            if abs(delta_I) < tol and abs(delta_II) < tol:
-                break
-        return epsilon_I, epsilon_II
-
-
-    epsilon_I, epsilon_II = newton_raphson(equations, [epsilon_I, epsilon_II], KI, KII, p)
+    solution = fsolve(equations, [epsilon_I, epsilon_II])
+    epsilon_I, epsilon_II = solution
     y1 = (1 - epsilon_I - epsilon_II) / (1 + epsilon_I + epsilon_II)
     y2 = epsilon_I / (1 + epsilon_I + epsilon_II)
     y3 = epsilon_I / (1 + epsilon_I + epsilon_II)
