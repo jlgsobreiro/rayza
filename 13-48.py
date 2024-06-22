@@ -1,6 +1,4 @@
 from math import exp, log
-import numpy as np
-from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 
 
@@ -134,6 +132,49 @@ def n0(a, b, c):
     return - tabela_C1[a]["Vi"] + tabela_C1[b]["Vi"] + tabela_C1[c]["Vi"]
 
 
+def gauss_jordan(A, b):
+    n = len(A)
+    M = A
+    for i in range(n):
+        M[i].append(b[i])
+    for i in range(n):
+        M[i] = [m_ij / M[i][i] for m_ij in M[i]]
+        for j in range(n):
+            if i != j:
+                M[j] = [M[j][k] - M[i][k]*M[j][i] for k in range(n+1)]
+    return [M[i][n] for i in range(n)]
+
+
+def jacobian(F, x, h=1e-5):
+    n = len(x)
+    J = [[0]*n for _ in range(n)]
+    for i in range(n):
+        x[i] += h
+        F_plus_h = F(x)
+        x[i] -= 2*h
+        F_minus_h = F(x)
+        x[i] += h
+        J[i] = [(F_plus_h_j - F_minus_h_j) / (2*h) for F_plus_h_j, F_minus_h_j in zip(F_plus_h, F_minus_h)]
+    return J
+
+
+def newton_raphson(F, x, eps=5e-5):
+    F_value = F(x)
+    F_norm = sum(F_value_i ** 2 for F_value_i in F_value) ** 0.5  # l2 norm of vector
+    iteration_counter = 0
+    while abs(F_norm) > eps and iteration_counter < 100:
+        J = jacobian(F, x)
+        delta = gauss_jordan(J, [-F_value_i for F_value_i in F_value])
+        x = [x_i + delta_i for x_i, delta_i in zip(x, delta)]
+        F_value = F(x)
+        F_norm = sum(F_value_i ** 2 for F_value_i in F_value) ** 0.5
+        iteration_counter += 1
+
+    if abs(F_norm) > eps:
+        iteration_counter = -1
+    return x, iteration_counter
+
+
 reactions = [("C3H8", "C3H6", "H2"), ("C3H8", "C2H4", "CH4")]
 Ks = []
 for reaction in reactions:
@@ -195,7 +236,7 @@ for i in range(len(T_list)):
         return [eq1, eq2]
 
 
-    solution = fsolve(equations, [epsilon_I, epsilon_II])
+    solution, no_iterations = newton_raphson(equations, [epsilon_I, epsilon_II])
     epsilon_I, epsilon_II = solution
     y1 = (1 - epsilon_I - epsilon_II) / (1 + epsilon_I + epsilon_II)
     y2 = epsilon_I / (1 + epsilon_I + epsilon_II)
